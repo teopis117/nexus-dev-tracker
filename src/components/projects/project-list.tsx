@@ -1,6 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 
 // Es un Server Component por defecto (no tiene 'use client')
 export async function ProjectList() {
