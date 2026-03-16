@@ -1,34 +1,42 @@
 import { createClient } from '@/lib/supabase/server'
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
-
-// Es un Server Component por defecto (no tiene 'use client')
+import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import Link from 'next/link'
+// Es un Server Component por defecto
 export async function ProjectList() {
   // 1. Instanciamos el cliente de DB en el servidor
   const supabase = await createClient()
 
-  // 2. Ejecutamos la consulta a PostgreSQL
+  // 2. Identificar quién está pidiendo ver la lista
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) return null // Si por alguna extraña razón no hay usuario, no renderizamos nada
+
+  // 3. Ejecutamos la consulta a PostgreSQL con el filtro de Propiedad (.eq)
   const { data: projects, error } = await supabase
     .from('projects')
     .select('*')
-    .order('created_at', { ascending: false }) // Los más nuevos primero
+    .eq('user_id', user.id) // <-- LA REGLA DE PRIVACIDAD ABSOLUTA
+    .order('created_at', { ascending: false })
 
-  // 3. Manejo de estados de error o vacío desde el servidor
+  // 4. Manejo de estados de error desde el servidor
   if (error) {
     return <div className="p-4 bg-red-50 text-red-600 rounded-md">Error al cargar proyectos: {error.message}</div>
   }
 
+  // 5. Manejo de estado vacío (¡Esto faltaba en tu versión!)
   if (!projects || projects.length === 0) {
     return (
       <div className="text-center p-8 border-2 border-dashed border-slate-200 rounded-lg text-slate-500 mt-8">
-        No hay proyectos registrados. ¡Crea el primero arriba!
+        No tienes proyectos registrados. ¡Crea el primero arriba!
       </div>
     )
   }
 
-  // 4. Renderizado de la UI
+  // 6. Renderizado de la UI
   return (
     <div className="grid gap-4 mt-8 w-full max-w-4xl mx-auto md:grid-cols-2">
       {projects.map((project) => (
+        <Link href={`/project/${project.id}`} key={project.id} className="block group">
         <Card key={project.id} className="hover:shadow-md transition-shadow">
           <CardHeader>
             <div className="flex justify-between items-start">
@@ -48,6 +56,7 @@ export async function ProjectList() {
             )}
           </CardHeader>
         </Card>
+      </Link>
       ))}
     </div>
   )
