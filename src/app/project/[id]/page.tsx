@@ -1,10 +1,12 @@
 import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
-import { Card, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card } from '@/components/ui/card'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { createTask } from '@/actions/task' // Importamos la nueva acción
+import { createTask } from '@/actions/task'
+import { TaskItem } from '@/components/projects/task-item' // <-- ¡Aquí está la pieza faltante!
+import { TaskList } from '@/components/projects/task-list'
 
 export default async function ProjectDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const supabase = await createClient()
@@ -20,7 +22,7 @@ export default async function ProjectDetailsPage({ params }: { params: Promise<{
   const { data: tasks } = await supabase
     .from('tasks').select('*').eq('project_id', id).order('created_at', { ascending: false })
 
- // 3. ¿Quién está viendo esta página ahora mismo?
+  // 3. ¿Quién está viendo esta página ahora mismo?
   const { data: { user } } = await supabase.auth.getUser()
 
   // 4. ¿El que está viendo es el dueño original del proyecto? (Autorización)
@@ -41,52 +43,45 @@ export default async function ProjectDetailsPage({ params }: { params: Promise<{
         <div className="border-b border-slate-200 pb-6">
           <h1 className="text-4xl font-extrabold tracking-tight text-slate-900">{project.name}</h1>
           <p className="text-slate-500 mt-2">{project.description || 'Sin descripción'}</p>
+          
+          {/* --- NUEVO: CAJA DEL CÓDIGO SECRETO --- */}
+          {isOwner && (
+            <div className="mt-4 inline-block p-3 bg-blue-50 border border-blue-200 rounded-md">
+              <p className="text-sm text-blue-800 font-semibold mb-1">Código de Invitación (ID):</p>
+              {/* select-all hace que al darle un clic, se seleccione todo el texto para copiarlo fácil */}
+              <code className="text-sm font-mono bg-white px-2 py-1 rounded border border-blue-100 select-all cursor-copy text-slate-700">
+                {project.id}
+              </code>
+              <p className="text-xs text-blue-600 mt-1">Comparte este código con tu equipo para que se unan desde su panel.</p>
+            </div>
+          )}
         </div>
 
-        {/* --- NUEVA ZONA DE TAREAS --- */}
+        {/* --- ZONA DE TAREAS --- */}
         <div className="space-y-6">
           {/* Formulario para agregar tarea */}
-
-          {isOwner &&(
-
-          <Card className="p-2 shadow-sm border-slate-200">
-            <form action={createProjectTask} className="flex gap-2">
-              <Input 
-                name="title" 
-                placeholder="¿Qué nueva tarea necesitas completar?" 
-                required 
-                className="border-none shadow-none focus-visible:ring-0 text-lg"
-                autoComplete="off"
-              />
-              <Button type="submit" className="bg-slate-900 text-white shrink-0">
-                Añadir Tarea
-              </Button>
-            </form>
-          </Card>
+          
+          {/* Lista de Tareas (Limpia y sin duplicados) */}
+          {/* Formulario para agregar tarea */}
+          {isOwner && (
+            <Card className="p-2 shadow-sm border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+              <form action={createProjectTask} className="flex gap-2">
+                <Input 
+                  name="title" 
+                  placeholder="¿Qué nueva tarea necesitas completar?" 
+                  required 
+                  className="border-none shadow-none focus-visible:ring-0 text-lg dark:bg-slate-900 dark:text-white"
+                  autoComplete="off"
+                />
+                <Button type="submit" className="bg-slate-900 text-white hover:bg-slate-800 dark:bg-blue-600 dark:hover:bg-blue-700 shrink-0">
+                  Añadir Tarea
+                </Button>
+              </form>
+            </Card>
           )}
-          {/* Lista de Tareas */}
-          <div className="space-y-3">
-            <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
-              Tareas 
-              <span className="bg-slate-200 text-slate-700 px-2 py-0.5 rounded-full text-sm">
-                {tasks?.length || 0}
-              </span>
-            </h2>
-
-            {!tasks || tasks.length === 0 ? (
-              <div className="text-center p-8 border-2 border-dashed border-slate-200 rounded-lg text-slate-500 bg-white">
-                El tablero está limpio. ¡Añade tu primera tarea!
-              </div>
-            ) : (
-              tasks.map((task) => (
-                <Card key={task.id} className="p-4 flex items-center justify-between hover:border-slate-300 transition-colors">
-                  <span className="font-medium text-slate-700">{task.title}</span>
-                  {/* Placeholder visual para el botón de completar (Lo haremos funcional en el siguiente paso) */}
-                  <div className="w-5 h-5 rounded border-2 border-slate-300 cursor-pointer hover:border-slate-500"></div>
-                </Card>
-              ))
-            )}
-          </div>
+          
+          {/* --- NUESTRA NUEVA LISTA CON PESTAÑAS --- */}
+          <TaskList tasks={tasks || []} projectId={id} isOwner={isOwner} />
         </div>
 
       </div>

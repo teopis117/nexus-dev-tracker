@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { logout } from '@/actions/auth'
 import { Button } from '@/components/ui/button'
+import { ThemeToggle } from '@/components/theme/theme-toggle'
 
 // Es un Server Component, por lo que puede consultar a la base de datos directamente
 export async function Navbar() {
@@ -27,13 +28,20 @@ export async function Navbar() {
           <Link href="/explore" className="text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors">
             Explorar
           </Link>
-          
+          {/* El interruptor siempre visible */}
+          <ThemeToggle />
           {user ? (
             /* Si HAY usuario autenticado */
             <div className="flex items-center gap-4 border-l border-slate-200 pl-4 ml-2">
               <Link href="/" className="text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors">
                 Mi Panel
               </Link>
+              
+              {/* --- NUEVO BOTÓN DE PERFIL --- */}
+              <Link href="/profile" className="text-sm font-medium text-blue-600 hover:text-blue-800 transition-colors">
+                Mi Perfil
+              </Link>
+
               <form action={logout}>
                 <Button variant="ghost" size="sm" type="submit" className="text-red-600 hover:text-red-700 hover:bg-red-50">
                   Cerrar Sesión

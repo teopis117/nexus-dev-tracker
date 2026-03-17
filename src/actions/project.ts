@@ -2,72 +2,51 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
-import { z } from 'zod'
 
-// 1. Definimos las reglas de validación
-const projectSchema = z.object({
-  name: z.string().min(3, 'El nombre debe tener al menos 3 caracteres'),
-  description: z.string().optional(),
-})
+export async function createProject(prevState: any, formData: FormData) {
+  const name = formData.get('name') as string
+  const description = formData.get('description') as string
 
-export type ActionResponse = {
-  success: boolean
-  message: string
-  errors?: {
-    [key: string]: string[]
-  }
-}
-
-export async function createProject(prevState: any, formData: FormData): Promise<ActionResponse> {
-  // 2. Extraemos los datos del formulario (¡Aquí está el rawData que faltaba!)
-  const rawData = {
-    name: formData.get('name'),
-    description: formData.get('description'),
-  }
-
-  // 3. Validamos los datos con Zod
-  const validatedData = projectSchema.safeParse(rawData)
-
-  if (!validatedData.success) {
-    return {
-      success: false,
-      message: 'Por favor, corrige los errores del formulario.',
-      errors: validatedData.error.flatten().fieldErrors,
-    }
+  if (!name || name.length < 3) {
+    return { success: false, message: 'El nombre debe tener al menos 3 caracteres.' }
   }
 
   const supabase = await createClient()
-
-  // 4. Obtenemos al usuario autenticado de forma segura en el servidor
   const { data: { user } } = await supabase.auth.getUser()
 
   if (!user) {
-    return { success: false, message: 'Acceso denegado. Usuario no autenticado.' }
+    return { success: false, message: 'Debes iniciar sesión.' }
   }
 
-  // 5. Inserción en la base de datos, incluyendo la firma del dueño (user_id)
+  // --- NUEVA LÓGICA DE NEGOCIO: CONTADOR DE LÍMITES SAAS ---
+  const { count, error: countError } = await supabase
+    .from('projects')
+    .select('*', { count: 'exact', head: true }) // head: true hace que sea súper rápido, solo cuenta, no trae datos
+    .eq('user_id', user.id)
+
+  // Si el usuario ya tiene 3 o más proyectos, le bloqueamos el paso con un mensaje de venta
+  if (count !== null && count >= 3) {
+    return { 
+      success: false, 
+      message: '🛑 Límite gratuito alcanzado (3/3). ¡Actualiza a Nexus Pro para proyectos ilimitados!' 
+    }
+  }
+  // -----------------------------------------------------------
+
   const { error } = await supabase
     .from('projects')
     .insert({
-      name: validatedData.data.name,
-      description: validatedData.data.description,
-      status: 'planning', // Estado inicial por defecto
-      user_id: user.id    // <-- LA FIRMA DEL DUEÑO
+      name,
+      description,
+      user_id: user.id,
+      status: 'planning'
     })
 
   if (error) {
-    console.error("Error en Supabase:", error.message)
-    return {
-      success: false,
-      message: 'Ocurrió un error al guardar en la base de datos.',
-    }
+    console.error('Error al crear proyecto:', error.message)
+    return { success: false, message: 'Error en el servidor al crear el proyecto.' }
   }
 
-  // 6. Refrescamos la página principal para ver el nuevo proyecto
-  revalidatePath('/', 'layout')
-  
-  return {
-    success: true,
-    message: 'Proyecto creado con éxito.',
-  }
+  revalidatePath('/')
+  return { success: true, message: '¡Proyecto creado con éxito!' }
 }

@@ -1,69 +1,60 @@
-'use client' 
+'use client'
 
-import { useActionState } from 'react'
-import { createProject, type ActionResponse } from '@/actions/project'
+import { useRef } from 'react'
+import { createProject } from '@/actions/project'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card'
-
-const initialState: ActionResponse = {
-  success: false,
-  message: '',
-}
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
+import { toast } from 'sonner'
 
 export function CreateProjectForm() {
-  const [state, formAction, isPending] = useActionState(createProject, initialState)
+  const formRef = useRef<HTMLFormElement>(null)
+
+  async function handleAction(formData: FormData) {
+    const toastId = toast.loading('Construyendo proyecto en la nube...')
+    const result = await createProject(null, formData)
+
+    if (result.success) {
+      toast.success(result.message, { id: toastId })
+      formRef.current?.reset()
+    } else {
+      toast.error(result.message, { id: toastId })
+    }
+  }
 
   return (
-    <Card className="w-full max-w-md mx-auto shadow-lg border-slate-200">
-      <CardHeader className="bg-slate-50 border-b border-slate-100 pb-6 rounded-t-xl">
-        <CardTitle className="text-2xl font-bold tracking-tight text-slate-900">Nuevo Proyecto</CardTitle>
-        <CardDescription className="text-slate-500">Inicializa un nuevo espacio de trabajo.</CardDescription>
+    <Card className="border-2 border-slate-200 shadow-sm bg-white dark:bg-slate-900 dark:border-slate-800 transition-colors">
+      <CardHeader>
+        <CardTitle className="text-2xl font-bold text-slate-900 dark:text-slate-100">Nuevo Proyecto</CardTitle>
+        <CardDescription className="dark:text-slate-400">Inicializa un nuevo espacio de trabajo.</CardDescription>
       </CardHeader>
-      
-      <form action={formAction}>
-        <CardContent className="space-y-5 pt-6">
+      <CardContent>
+        <form ref={formRef} action={handleAction} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="name" className="text-slate-700 font-semibold">Nombre del Proyecto</Label>
+            <Label htmlFor="name" className="dark:text-slate-300">Nombre del Proyecto</Label>
             <Input 
               id="name" 
               name="name" 
               placeholder="Ej. API de Pagos v2" 
-              disabled={isPending} 
-              autoComplete="off"
-              className="border-slate-300 focus-visible:ring-slate-500"
+              required 
+              className="dark:bg-slate-950 dark:border-slate-800 dark:text-slate-100"
             />
-            {state.errors?.name && (
-              <p className="text-sm font-medium text-red-500">{state.errors.name[0]}</p>
-            )}
           </div>
-
           <div className="space-y-2">
-            <Label htmlFor="description" className="text-slate-700 font-semibold">Descripción (Opcional)</Label>
+            <Label htmlFor="description" className="dark:text-slate-300">Descripción (Opcional)</Label>
             <Input 
               id="description" 
               name="description" 
               placeholder="Objetivo principal..." 
-              disabled={isPending} 
-              autoComplete="off"
-              className="border-slate-300 focus-visible:ring-slate-500"
+              className="dark:bg-slate-950 dark:border-slate-800 dark:text-slate-100"
             />
           </div>
-        </CardContent>
-
-        <CardFooter className="flex flex-col items-start gap-4 bg-slate-50 rounded-b-xl pt-6 border-t border-slate-100">
-          <Button type="submit" className="w-full bg-slate-900 hover:bg-slate-800 text-white" disabled={isPending}>
-            {isPending ? 'Construyendo...' : 'Crear Proyecto'}
+          <Button type="submit" className="w-full bg-slate-900 text-white hover:bg-slate-800 dark:bg-blue-600 dark:hover:bg-blue-700">
+            Crear Proyecto
           </Button>
-
-          {state.message && (
-            <div className={`p-3 w-full rounded-md text-sm font-medium text-center transition-all ${state.success ? 'bg-green-100 text-green-800 border border-green-200' : 'bg-red-100 text-red-800 border border-red-200'}`}>
-              {state.message}
-            </div>
-          )}
-        </CardFooter>
-      </form>
+        </form>
+      </CardContent>
     </Card>
   )
 }
